@@ -5,6 +5,13 @@ struct  Tecla {
   bool estadoAnterior;
   unsigned long ultimoCambio;
 };
+struct Nodo {
+  int frecuencia;          
+  unsigned long duracion;  
+  Nodo* siguiente;         // estructura para la grabación
+};
+Nodo *inicio= nullptr; // puntero a la primer lista
+Nodo *fin= nullptr; // puntero al final de la lista 
 unsigned long inicioSilencio=0;
 unsigned long inicioNota=0;
 const int pinBuzzer=25;
@@ -17,7 +24,7 @@ Tecla piano[8] = {
   {5,  440, false, 0},
   {17, 494, false, 0},
   {16, 523, false, 0}
-};
+}; //estructura declarada del piano para las teclas
 // iniciamos tiempos para el debounce PT2
 
 const unsigned long rebounce=50;
@@ -32,28 +39,76 @@ void setup() {
 void loop() {
   for (int i = 0; i < 8; i++) {
     bool estadoActual = (digitalRead(piano[i].pin) == LOW); //si la tecla está en low, es true(esta siendo presionada) logica pullup
-if (estadoActual!=piano[i].estadoAnterior && millis()-piano[i].ultimoCambio>=rebounce) {
+if (estadoActual!=piano[i].estadoAnterior && millis()-piano[i].ultimoCambio>=rebounce) // la tecla esta siendo pulsada
+{
   piano[i].ultimoCambio=millis();
  // debounce para los botones, se asegura que el boton fue pulsado o soltado y que el tiempo que haya sido pusado sea mayor a 0,05 seg
     if (estadoActual == true && piano[i].estadoAnterior == false) {
-        unsigned long duracionSilencio=millis()-inicioSilencio;
-      tone(pinBuzzer, piano[i].frecuencia);
-      Serial.print("Silencio,");
+     if (inicioSilencio>0) {  
+      unsigned long duracionSilencio=millis()-inicioSilencio; 
+      agregarNodo(0,duracionSilencio);
+       Serial.print("Silencio,");
       Serial.println(duracionSilencio);
-      inicioNota=millis();
+     }
+     tone(pinBuzzer, piano[i].frecuencia);
+    
+      inicioNota=millis(); // iniciamos la cuenta de duracion de la nota, y contamos el silencio de la nota anterior
     } 
-    else if (estadoActual == false && piano[i].estadoAnterior == true) {
+    else if (estadoActual == false && piano[i].estadoAnterior == true) // la tecla dejo de ser pulsada
+     {
       unsigned long duracionNota=millis()-inicioNota;
 
       noTone(pinBuzzer);
-
+      agregarNodo(piano[i].frecuencia,duracionNota);
        Serial.println(i);
        Serial.print(",");
        Serial.println(duracionNota);
-      inicioSilencio=millis();
+      inicioSilencio=millis(); // iniciamos la cuenta de duracion del silencio y contamos la duracion de la nota anterior
     }
         piano[i].estadoAnterior = estadoActual; // Guarda el estado para la próxima vuelta
 
   }
   }
+  if (Serial.available() > 0) {
+    char comando = Serial.read();
+    if (comando == 'p') {
+      reproducirMelodia();
+    } else if (comando == 'b') {
+      borrarMelodia();
+    }
+} }
+void agregarNodo (int frecuencia, unsigned long duracion) {
+  Nodo *nuevo=new Nodo {frecuencia, duracion, nullptr};
+  if(inicio==nullptr){
+    inicio=nuevo;
+    fin=nuevo;
+  } else {
+    fin->siguiente=nuevo;
+    fin = nuevo;
+  }
 }
+void reproducirMelodia () {
+  Nodo *aux=inicio;
+while (aux != nullptr) {
+    if (aux->frecuencia > 0) {
+      tone(pinBuzzer, aux->frecuencia);
+    } else {
+      noTone(pinBuzzer);
+    }
+    delay(aux->duracion);
+    aux=aux->siguiente;
+
+}
+noTone(pinBuzzer); 
+}
+void borrarMelodia() {
+  while (inicio != nullptr) {
+    Nodo* aux = inicio;
+    inicio = inicio->siguiente;
+    delete aux;
+  }
+  fin = nullptr;
+  inicioSilencio = 0;
+  Serial.println("Melodia borrada.");
+}
+ 
