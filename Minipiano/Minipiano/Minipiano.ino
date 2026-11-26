@@ -14,7 +14,7 @@ Nodo *inicio= nullptr; // puntero a la primer lista
 Nodo *fin= nullptr; // puntero al final de la lista 
 unsigned long inicioSilencio=0;
 unsigned long inicioNota=0;
-const int pinBuzzer=25;
+const int pinBuzzer=4;
 Tecla piano[8] = {
   {23, 262, false, 0},
   {22, 294, false, 0},
@@ -76,6 +76,9 @@ if (estadoActual!=piano[i].estadoAnterior && millis()-piano[i].ultimoCambio>=reb
     } else if (comando == 'b') {
       borrarMelodia();
     }
+    else if (comando == 'l') {
+      loopearMelodia();
+    }
 } }
 void agregarNodo (int frecuencia, unsigned long duracion) {
   Nodo *nuevo=new Nodo {frecuencia, duracion, nullptr};
@@ -111,4 +114,29 @@ void borrarMelodia() {
   inicioSilencio = 0;
   Serial.println("Melodia borrada.");
 }
- 
+void loopearMelodia() {
+  if (inicio == nullptr) return; // Si no grabaste nada, sale directo
+
+  bool loopeando = true;
+  Nodo* aux = inicio;
+
+  while (loopeando) {
+    if (aux->frecuencia > 0) {
+      tone(pinBuzzer, aux->frecuencia);
+    } else {
+      noTone(pinBuzzer);
+    }
+    delay(aux->duracion);
+
+    aux = aux->siguiente;
+    if (aux == nullptr) {
+    aux=inicio;    
+    }
+
+    if (Serial.available() > 0 && Serial.read() == 's') {
+      loopeando=false;
+    }
+  }
+
+  noTone(pinBuzzer);
+}
